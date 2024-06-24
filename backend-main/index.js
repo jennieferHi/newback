@@ -37,11 +37,7 @@ app.use(session({
   saveUninitialized: true,
   cookie: { secure: false }
 }))
-app.use("/",(req,res)=>{
-  res.send("Ddd")
-})
  
-
 // 自訂的頂層middleware
 app.use((req, res, next) => {
   // res.locals.title = "NightMarket Hunter"; //設定網站名稱
@@ -61,177 +57,107 @@ app.use((req, res, next) => {
 });
 
 // Google會員登入
-app.post("/google-login", async (req, res) => {
-  // console.log(req.body);
-  //   res.json({ data: {} });
-  // });
+// app.post("/google-login", async (req, res) => {
+//   // console.log(req.body);
+//   //   res.json({ data: {} });
+//   // });
 
-  // 檢查從react來的資料
-  if (!req.body.providerId || !req.body.uid) {
-    return res.json({ status: 'error', message: '缺少google登入資料' })
-  }
+//   // 檢查從react來的資料
+//   if (!req.body.providerId || !req.body.uid) {
+//     return res.json({ status: 'error', message: '缺少google登入資料' })
+//   }
 
-  const { displayName, email, uid, photoURL } = req.body || {};
-  const google_uid = uid;
+//   const { displayName, email, uid, photoURL } = req.body || {};
+//   const google_uid = uid;
 
-   // 以下流程:
-  // 1. 先查詢資料庫是否有同google_uid的資料
-  // 2-1. 有存在 -> 執行登入工作
-  // 2-2. 不存在 -> 建立一個新會員資料(無帳號與密碼)，只有google來的資料 -> 執行登入工作
+//    // 以下流程:
+//   // 1. 先查詢資料庫是否有同google_uid的資料
+//   // 2-1. 有存在 -> 執行登入工作
+//   // 2-2. 不存在 -> 建立一個新會員資料(無帳號與密碼)，只有google來的資料 -> 執行登入工作
 
-  const output = {
-    success: false,
-    error: "",
-    code: 0,
-    //當success變為true要的資料
-    data: {
-      custom_id: 0,
-      account: "",
-      google_uid: "",
-      token: "",
-    },
-  };
+//   const output = {
+//     success: false,
+//     error: "",
+//     code: 0,
+//     //當success變為true要的資料
+//     data: {
+//       custom_id: 0,
+//       account: "",
+//       google_uid: "",
+//       token: "",
+//     },
+//   };
 
-  const sql = "SELECT * FROM custom WHERE google_uid=?";
-  const [rows] = await db.query(sql, [google_uid]);
-  const row = rows[0];
-  if (rows.length) {
-  // 如果有搜尋到資料 = 進行登入
+//   const sql = "SELECT * FROM custom WHERE google_uid=?";
+//   const [rows] = await db.query(sql, [google_uid]);
+//   const row = rows[0];
+//   if (rows.length) {
+//   // 如果有搜尋到資料 = 進行登入
 
-  output.success = true;
-    // 打包  JWT
-    const token = jwt.sign(
-      {
-        custom_id: row.custom_id,
-        account: row.custom_account,
-        google_uid: row.google_uid,
-      },
-      // process.env.JWT_SECRET >> 去看 dev.env 檔
-      process.env.JWT_SECRET
-    );
-    output.data = {
-      custom_id: row.custom_id,
-      account: row.custom_account,
-      google_uid: row.google_uid,
-      token,
-    };
-  } else {
-    // 如果沒有搜尋到資料=進行註冊
-    let result = {};
-    const sql =
-      "INSERT INTO custom (custom_name, custom_account, google_uid, photo_url) VALUES (?, ?, ?, ?)";
-    try {
-      [result] = await db.query(sql, [
-        displayName,
-        email,
-        google_uid,
-        photoURL,
-      ]);
-      if (result && result.insertId) {
-        const custom_id = result.insertId;
-      output.success = !!result.affectedRows;
-      // 打包  JWT
-      const token = jwt.sign(
-        {
-          custom_id: custom_id,
-          account: email,
-          google_uid: google_uid,
-        },
-        // process.env.JWT_SECRET >> 去看 dev.env 檔
-        process.env.JWT_SECRET
-      );
-      output.data = {
-        custom_id: custom_id,
-        account: email,
-        google_uid: google_uid,
-        token,
-      };
-    }else {
-      output.error = "註冊失敗";
-    }
-  } catch (ex) {
-  }
-  }
-  res.json(output);
-});
-
-
-// 一般會員登入
-app.post("/login-jwt", async (req, res) => {
-  let { account, password } = req.body || {};
-  const output = {
-    success: false,
-    error: "",
-    code: 0,
-    //當success變為true要的資料
-    data: {
-      custom_id: 0,
-      account: "",
-      google_uid: "",
-      token: "",
-    },
-  };
-  if (!account || !password) {
-    output.error = "欄位資料不足";
-    output.code = 400;
-    return res.json(output);
-  }
-  account = account.trim();
-  password = password.trim();
-  const sql = "SELECT * FROM custom WHERE custom_account=?";
-  const [rows] = await db.query(sql, [account]);
-  if (!rows.length) {
-    // 帳號是錯的
-    output.error = "帳號或密碼錯誤";
-    output.code = 420;
-    return res.json(output);
-  }
-  const row = rows[0];
-  const result = await bcrypt.compare(password, row.custom_password);
-  if (result) {
-    // 帳號是對的, 密碼也是對的
-    output.success = true;
-    // 打包  JWT
-    const token = jwt.sign(
-      {
-        custom_id: row.custom_id,
-        account: row.custom_account,
-        google_uid: row.google_uid,
-      },
-      // process.env.JWT_SECRET >> 去看 dev.env 檔
-      process.env.JWT_SECRET
-    );
-    output.data = {
-      custom_id: row.custom_id,
-      account: row.custom_account,
-      nickname: row.custom_nickname,
-      token,
-    };
-  } else {
-    // 密碼是錯的
-    output.error = "帳號或密碼錯誤";
-    output.code = 450;
-  }
-  res.json(output);
-});
+//   output.success = true;
+//     // 打包  JWT
+//     const token = jwt.sign(
+//       {
+//         custom_id: row.custom_id,
+//         account: row.custom_account,
+//         google_uid: row.google_uid,
+//       },
+//       // process.env.JWT_SECRET >> 去看 dev.env 檔
+//       process.env.JWT_SECRET
+//     );
+//     output.data = {
+//       custom_id: row.custom_id,
+//       account: row.custom_account,
+//       google_uid: row.google_uid,
+//       token,
+//     };
+//   } else {
+//     // 如果沒有搜尋到資料=進行註冊
+//     let result = {};
+//     const sql =
+//       "INSERT INTO custom (custom_name, custom_account, google_uid, photo_url) VALUES (?, ?, ?, ?)";
+//     try {
+//       [result] = await db.query(sql, [
+//         displayName,
+//         email,
+//         google_uid,
+//         photoURL,
+//       ]);
+//       if (result && result.insertId) {
+//         const custom_id = result.insertId;
+//       output.success = !!result.affectedRows;
+//       // 打包  JWT
+//       const token = jwt.sign(
+//         {
+//           custom_id: custom_id,
+//           account: email,
+//           google_uid: google_uid,
+//         },
+//         // process.env.JWT_SECRET >> 去看 dev.env 檔
+//         process.env.JWT_SECRET
+//       );
+//       output.data = {
+//         custom_id: custom_id,
+//         account: email,
+//         google_uid: google_uid,
+//         token,
+//       };
+//     }else {
+//       output.error = "註冊失敗";
+//     }
+//   } catch (ex) {
+//   }
+//   }
+//   res.json(output);
+// });
 
 app.get("/jwt-data", async (req, res) => {
   res.json(req.my_jwt);
 });
  
  
-
-  
 // 購物車結帳路由
-app.use('/cartItem', cartRouter);  
 
-
- 
-// 店家產品路由
-app.use("/shop-products", shopRouter);
-
- 
- 
  
 // 會員路由
 // app.use("/images", express.static(path.join(__dirname, "public/discuss/")));
@@ -244,6 +170,6 @@ app.use((req, res) => {
   res.status(404).send(`<h2>404 走錯路了</h2>`);
 });
 
-app.listen(8080, '0.0.0.0', () => {
-  console.log('Server running at http://0.0.0.0:8080/');
+app.listen(3002, '127.0.0.1', () => {
+  console.log('Server running at http://127.0.0.1:3002/');
 })

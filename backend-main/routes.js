@@ -14,7 +14,8 @@ const app = express.Router();
 // app.get("/jsonTableSearch", jsonTableSearch);
 // app.post("/create", jsonFormTa);
 //++ 顧客資料 
- 
+ // 一般會員登入 
+  
 // 顧客資料
 app.post("/user/selectAccount", selectAccount);
 // 新增資料

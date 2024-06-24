@@ -52,15 +52,14 @@ export const updateMemberForm = async (req, res) => {
 // 登入
 export const selectAccount = async (req, res) => {
     const email = req.body.email || 1;
-    const password = req.body.password || 1;
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const password = req.body.password || 1; 
     const sql = "select * from account where email=?"
 
     try {
         const result = await db.query(sql, [email]);
 
         if (result[0].length <= 0) {
-            return res.json({ success: false, error: "Error in signup query" });
+            return res.json({ success: false, error: "無此人" });
         }
 
         const user = result[0][0];
@@ -79,7 +78,7 @@ export const selectAccount = async (req, res) => {
             return res.json({ success: false, error: "密碼錯誤" });
         }
     } catch (err) {
-        return res.status(500).json({ error: "An error occurred while processing the request" });
+        return res.status(500).json({ error: "An error occurred while processing the request",MSG:err });
     }
 
 }
